@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ملاحظاتي</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            background: #f4f6f9;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            transition: background 0.3s ease;
+        }
+
+        body.dark-mode {
+            background: #2c3e50;
+            color: #ecf0f1;
+        }
+
+        .container {
+            background: #ffffff;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 12px 15px rgba(0, 0, 0, 0.1);
+            width: 400px;
+            text-align: center;
+            transform: scale(1);
+            transition: transform 0.3s ease;
+        }
+
+        .container.dark-mode {
+            background: #34495e;
+        }
+
+        h1 {
+            font-size: 26px;
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        .input-container {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        input, textarea {
+            padding: 12px;
+            font-size: 16px;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+            width: 95%;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        input:focus, textarea:focus {
+            border-color: #3498db;
+        }
+
+        button {
+            padding: 12px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #2980b9;
+        }
+
+        .dark-mode button {
+            background-color: #1abc9c;
+        }
+
+        .dark-mode button:hover {
+            background-color: #16a085;
+        }
+
+        .file-input {
+            padding: 10px;
+            border-radius: 8px;
+            background-color: #ecf0f1;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        .file-input.dark-mode {
+            background-color: #34495e;
+        }
+
+        ul {
+            list-style-type: none;
+            padding: 0;
+            margin-top: 20px;
+            overflow-y: auto;
+            max-height: 300px;
+        }
+
+        li {
+            background: #f9f9f9;
+            padding: 15px;
+            margin-bottom: 12px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background-color 0.3s;
+        }
+
+        li:hover {
+            background-color: #ecf0f1;
+        }
+
+        .delete-btn {
+            background: #e74c3c;
+            color: white;
+            padding: 5px 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.3s;
+        }
+
+        .delete-btn:hover {
+            background-color: #c0392b;
+        }
+
+        .note-time {
+            font-size: 12px;
+            color: #888;
+        }
+
+        .switch-container {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .switch-container label {
+            color: #333;
+        }
+
+        .switch-container input {
+            cursor: pointer;
+        }
+
+        .record-btn {
+            padding: 10px 20px;
+            background-color: #f39c12;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+
+        .record-btn:hover {
+            background-color: #e67e22;
+        }
+
+        .recording {
+            background-color: #e74c3c;
+        }
+    </style>
+</head>
+<body>
+    <div class="switch-container">
+        <label for="darkModeSwitch">
+            <img id="themeIcon" src="https://img.icons8.com/ios-filled/50/000000/sun.png" alt="theme icon" onclick=toggleDarkMode()>
+        </label>
+        <!-- <input type="checkbox" id="darkModeSwitch" onchange="toggleDarkMode()"> -->
+    </div>
+
+    <div class="container">
+        <h1>ملاحظاتي</h1>
+        <div class="input-container">
+            <input type="text" id="noteInput" placeholder="أضف ملاحظة..." />
+            <input type="datetime-local" id="reminderTime" />
+            <textarea id="urlInput" placeholder="أضف رابط URL (اختياري)" rows="3"></textarea>
+            <button onclick="addNote()">أضف الملاحظة</button>
+            <button id="recordBtn" class="record-btn" onclick="toggleRecording()">ابدأ التسجيل الصوتي</button>
+        </div>
+        <ul id="noteList"></ul>
+    </div>
+
+    <script>
+        let isRecording = false;
+        let mediaRecorder;
+        let audioChunks = [];
+        let audioBlob;
+        let audioUrl;
+        let audioFile;
+
+        // التبديل بين الوضع الداكن والفاتح
+        function toggleDarkMode() {
+            const body = document.body;
+            const container = document.querySelector('.container');
+            body.classList.toggle('dark-mode');
+            container.classList.toggle('dark-mode');
+            const themeIcon = document.getElementById('themeIcon');
+            if (body.classList.contains('dark-mode')) {
+                themeIcon.src = "https://img.icons8.com/ios-filled/50/000000/moon.png";
+            } else {
+                themeIcon.src = "https://img.icons8.com/ios-filled/50/000000/sun.png";
+            }
+        }
+
+        // دالة لعرض الملاحظات المحفوظة
+        function displayNotes() {
+            const notes = JSON.parse(localStorage.getItem("notes")) || [];
+            const noteList = document.getElementById("noteList");
+            noteList.innerHTML = "";
+
+            notes.forEach((note, index) => {
+                const li = document.createElement("li");
+
+                // عرض رابط URL إن وجد
+                const link = note.url ? `<a href="${note.url}" target="_blank" style="color: #3498db;">رابط الملاحظة</a>` : '';
+
+                // عرض الصوت إن وجد
+                const audio = note.audio ? `<audio controls><source src="${note.audio}" type="audio/mpeg">متصفحك لا يدعم الصوت.</audio>` : '';
+
+                li.innerHTML = `
+                    <span>
+                        ${note.text} <br>
+                        <span class="note-time">تذكير في: ${new Date(note.time).toLocaleString()}</span><br>
+                        ${link}
+                        ${audio}
+                    </span>
+                    <button class="delete-btn" onclick="deleteNote(${index})">حذف</button>
+                `;
+                noteList.appendChild(li);
+            });
+
+            
+        }
+
+        // دالة لإضافة ملاحظة
+        function addNote() {
+    const noteInput = document.getElementById("noteInput");
+    const reminderTime = document.getElementById("reminderTime");
+    const urlInput = document.getElementById("urlInput");
+
+    const noteText = noteInput.value;
+    const reminderDate = new Date(reminderTime.value);
+    const url = urlInput.value;
+    const audio = audioUrl ? audioUrl : null;
+
+    if (!noteText || !reminderTime.value) {
+        alert("يرجى إدخال الملاحظة ووقت التنبيه.");
+        return;
+    }
+
+    // إضافة الملاحظة في الذاكرة المحلية
+    const notes = JSON.parse(localStorage.getItem("notes")) || [];
+    notes.push({ text: noteText, time: reminderDate, url, audio });
+    localStorage.setItem("notes", JSON.stringify(notes));
+
+    // تحديث الواجهة
+    displayNotes();
+
+    // تنظيف المدخلات
+    noteInput.value = "";
+    reminderTime.value = "";
+    urlInput.value = "";
+
+    // عرض إشعار بداية التذكير
+    if (Notification.permission === "granted") {
+        new Notification("تم بدء التذكير", {
+            body: `سيتم تذكيرك بملاحظة: "${noteText}" في الوقت المحدد.`,
+            icon: "https://img.icons8.com/ios/452/appointment-reminders.png"
+        });
+    } else {
+        alert("لم يتم منح إذن الإشعارات.");
+    }
+
+    // تفعيل التنبيه عند الوصول للوقت المحدد
+    const currentTime = new Date();
+    const timeDifference = reminderDate - currentTime;
+
+    if (timeDifference > 0) {
+        setTimeout(() => {
+            showNotification(noteText);
+        }, timeDifference);
+    }
+}
+
+
+        // دالة لعرض التنبيه
+       // دالة لعرض التنبيه
+function showNotification(noteText) {
+    if (Notification.permission === "granted") {
+        new Notification("تذكير", {
+            body: `ملاحظة: ${noteText}`,
+            icon: "https://img.icons8.com/ios/452/appointment-reminders.png"
+        });
+    } else {
+        alert("لم يتم منح إذن الإشعارات.");
+    }
+}
+
+
+        // دالة لحذف ملاحظة
+        function deleteNote(index) {
+            const notes = JSON.parse(localStorage.getItem("notes"));
+            notes.splice(index, 1);
+            localStorage.setItem("notes", JSON.stringify(notes));
+            displayNotes();
+        }
+
+        // طلب إذن الإشعارات عند تحميل الصفحة
+        if (Notification.permission !== "granted") {
+            Notification.requestPermission();
+        }
+
+        // دالة لتسجيل الصوت
+        function toggleRecording() {
+            const recordBtn = document.getElementById("recordBtn");
+            if (isRecording) {
+                mediaRecorder.stop();
+                recordBtn.classList.remove('recording');
+                recordBtn.textContent = 'ابدأ التسجيل الصوتي';
+            } else {
+                startRecording();
+                recordBtn.classList.add('recording');
+                recordBtn.textContent = 'إيقاف التسجيل';
+            }
+            isRecording = !isRecording;
+        }
+
+        // بدء تسجيل الصوت
+        async function startRecording() {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaRecorder = new MediaRecorder(stream);
+
+            mediaRecorder.ondataavailable = function(event) {
+                audioChunks.push(event.data);
+            };
+
+            mediaRecorder.onstop = function() {
+                audioBlob = new Blob(audioChunks, { type: 'audio/mpeg' });
+                audioUrl = URL.createObjectURL(audioBlob);
+                audioChunks = [];
+            };
+
+            mediaRecorder.start();
+        }
+
+        // عرض الملاحظات المحفوظة عند تحميل الصفحة
+        displayNotes();
+
+       
+        
+    </script>
+    
+</body>
+</html>
